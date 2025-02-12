@@ -1,13 +1,8 @@
 package com.supalle.nice.rpc;
 
 import com.google.auto.service.AutoService;
-import com.sun.source.tree.ExpressionTree;
 import com.sun.tools.javac.main.JavaCompiler;
-import com.sun.tools.javac.model.JavacElements;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Pair;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -18,29 +13,24 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 @AutoService(Processor.class)
 public class NiceRPCProcessor extends AbstractProcessor {
     private ProcessingEnvironment processingEnv;
-    private JavacElements elementUtils;
-    private TreeMaker treeMaker;
 
-    // 候选集合 ElementsAnnotated、JCTree
-    private final ConcurrentMap<Element, Pair<JCTree, JCTree.JCCompilationUnit>> candidates = new ConcurrentHashMap<>();
-
-    // 已处理集合
-    private final ConcurrentMap<String, Boolean> processedSymbols = new ConcurrentHashMap<>();
+    // 候选集合
+    private final ConcurrentMap<Element, Boolean> candidates = new ConcurrentHashMap<>();
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         this.processingEnv = processingEnv;
-        this.elementUtils = (JavacElements) processingEnv.getElementUtils();
-        this.treeMaker = TreeMaker.instance(Objects.requireNonNull(getContext(processingEnv), "不支持的javac编译环境，无法获取编译上下文"));
     }
 
     private Context getContext(ProcessingEnvironment processingEnv) {
@@ -79,9 +69,11 @@ public class NiceRPCProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        Set<? extends Element> rootElements = roundEnv.getRootElements();
-        for (Element rootElement : rootElements) {
-            candidates.put(rootElement, elementUtils.getTreeAndTopLevel(rootElement, null, null));
+        Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(NiceRPC.class);
+        if (elements != null && !elements.isEmpty()) {
+            for (Element element : elements) {
+                candidates.put(element, Boolean.FALSE);
+            }
         }
         if (roundEnv.processingOver() || roundEnv.errorRaised() || LombokState.isLombokInvoked()) {
             finishRemaining();
@@ -90,29 +82,9 @@ public class NiceRPCProcessor extends AbstractProcessor {
         return false;
     }
 
-
     private void finishRemaining() {
-
-    }
-
-    private String getPackageName(JCTree.JCCompilationUnit jcCompilationUnit) {
-        try {
-            ExpressionTree packageName = jcCompilationUnit.getPackageName();
-            if (packageName != null) {
-                return packageName.toString();
-            }
-        } catch (Exception e) {
-            if (e instanceof NoSuchMethodException) {
-                try {
-                    Method method = JCTree.JCCompilationUnit.class.getMethod("getPackage");
-                    method.setAccessible(true);
-                    return ((JCTree.JCPackageDecl) method.invoke(jcCompilationUnit)).getPackageName().toString();
-                } catch (Exception ignored) {
-                }
-            }
-            throw new RuntimeException(e.getMessage(), e);
-        }
-        return null;
+        ConcurrentMap<Element, Boolean> candidates = this.candidates;
+        System.out.println(candidates);
     }
 
 }

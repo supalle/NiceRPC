@@ -12,7 +12,9 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>nice-rpc</module>
+        <module>nice-rpc-annprocess</module>
+        <module>nice-rpc-test</module>
+        <module>nice-rpc-code</module>
     </modules>
 
     <properties>

@@ -1,17 +1,22 @@
 package com.supalle;
 
 
+import com.supalle.nice.rpc.*;
+
 public class StudentServiceImpl implements StudentService {
 
-    private final NiceRpcEngine niceRpcEngine;
+    private final RpcEngine rpcEngine;
 
-    public StudentServiceImpl(NiceRpcEngine niceRpcEngine) {
-        this.niceRpcEngine = niceRpcEngine;
+    public StudentServiceImpl(RpcEngine rpcEngine) {
+        this.rpcEngine = rpcEngine;
     }
+
+    private final RpcMethod rpcMethod_getStudent = RpcMethodImpl.of(StudentServiceImpl.class, "getStudent", int.class);
 
     @Override
     public Student getStudent(int id) {
-        return null;
+        RpcExecutePoint rpcExecutePoint = new RpcExecutePointImpl(rpcMethod_getStudent, this, new Object[]{id});
+        return rpcEngine.call(rpcExecutePoint);
     }
 
 }

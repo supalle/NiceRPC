@@ -11,12 +11,13 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
+import javax.tools.JavaFileObject;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -84,7 +85,89 @@ public class NiceRPCProcessor extends AbstractProcessor {
 
     private void finishRemaining() {
         ConcurrentMap<Element, Boolean> candidates = this.candidates;
-        System.out.println(candidates);
-    }
+        for (Map.Entry<Element, Boolean> entry : candidates.entrySet()) {
+            if (Boolean.TRUE.equals(entry.getValue())) {
+                continue;
+            }
+            Element element = entry.getKey();
 
+            TypeMirror elementType = element.asType();
+
+            String className = elementType.toString();
+
+            List<? extends Element> enclosedElements = element.getEnclosedElements();
+
+            try {
+
+                String packageName = null;
+                int lastDot = className.lastIndexOf('.');
+                if (lastDot > 0) {
+                    packageName = className.substring(0, lastDot);
+                }
+                String simpleClassName = className.substring(lastDot + 1);
+                String builderClassName = className + "NiceRpcImpl";
+                String builderSimpleClassName = builderClassName
+                        .substring(lastDot + 1);
+                String rpcImplClassName = "NiceRpc_" + className + "Impl";
+
+                JavaFileObject rpcImplFile = processingEnv.getFiler().createSourceFile(builderClassName);
+                try (PrintWriter out = new PrintWriter(rpcImplFile.openWriter())) {
+
+                    if (packageName != null) {
+                        out.print("package ");
+                        out.print(packageName);
+                        out.println(";");
+                        out.println();
+                    }
+
+                    out.print("public class ");
+                    out.print(builderSimpleClassName);
+                    out.println(" {");
+                    out.println();
+
+                    out.print("    private ");
+                    out.print(simpleClassName);
+                    out.print(" object = new ");
+                    out.print(simpleClassName);
+                    out.println("();");
+                    out.println();
+
+                    out.print("    public ");
+                    out.print(simpleClassName);
+                    out.println(" build() {");
+                    out.println("        return object;");
+                    out.println("    }");
+                    out.println();
+
+
+                    for (Element enclosedElement : enclosedElements) {
+                        // String methodName = setter.getKey();
+                        // String argumentType = setter.getValue();
+                        //
+                        // out.print("    public ");
+                        // out.print(builderSimpleClassName);
+                        // out.print(" ");
+                        // out.print(methodName);
+                        //
+                        // out.print("(");
+                        //
+                        // out.print(argumentType);
+                        // out.println(" value) {");
+                        // out.print("        object.");
+                        // out.print(methodName);
+                        // out.println("(value);");
+                        // out.println("        return this;");
+                        // out.println("    }");
+                        // out.println();
+                    }
+                    out.println("    }");
+                    out.println();
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            entry.setValue(Boolean.TRUE);
+        }
+
+    }
 }

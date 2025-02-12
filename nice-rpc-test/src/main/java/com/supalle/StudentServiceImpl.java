@@ -15,7 +15,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public Student getStudent(int id) {
-        RpcExecutePoint rpcExecutePoint = new RpcExecutePointImpl(rpcMethod_getStudent, this, new Object[]{id});
+        RpcExecutePoint rpcExecutePoint = new RpcExecutePointImpl(rpcMethod_getStudent, this, new Object[]{id}, new RpcExecuteContextImpl());
         return rpcEngine.call(rpcExecutePoint);
     }
 

@@ -9,8 +9,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.tools.JavaFileObject;
@@ -20,6 +19,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 @AutoService(Processor.class)
 public class NiceRPCProcessor extends AbstractProcessor {
@@ -120,47 +120,65 @@ public class NiceRPCProcessor extends AbstractProcessor {
                         out.println();
                     }
 
+                    out.println("import com.supalle.nice.rpc.*;");
+
                     out.print("public class ");
                     out.print(builderSimpleClassName);
+                    out.print(" implements ");
+                    out.print(className);
                     out.println(" {");
                     out.println();
 
-                    out.print("    private ");
-                    out.print(simpleClassName);
-                    out.print(" object = new ");
-                    out.print(simpleClassName);
-                    out.println("();");
+                    out.print("    private final RpcEngine rpcEngine;");
+                    out.println();
+                    out.print("    public " + builderSimpleClassName + "(RpcEngine rpcEngine) {");
+                    out.println();
+                    out.print("        this.rpcEngine = rpcEngine;");
+                    out.println();
+                    out.print("    }");
+
                     out.println();
 
-                    out.print("    public ");
-                    out.print(simpleClassName);
-                    out.println(" build() {");
-                    out.println("        return object;");
-                    out.println("    }");
-                    out.println();
-
-
+                    int i = 0;
                     for (Element enclosedElement : enclosedElements) {
-                        // String methodName = setter.getKey();
-                        // String argumentType = setter.getValue();
-                        //
-                        // out.print("    public ");
-                        // out.print(builderSimpleClassName);
-                        // out.print(" ");
-                        // out.print(methodName);
-                        //
-                        // out.print("(");
-                        //
-                        // out.print(argumentType);
-                        // out.println(" value) {");
-                        // out.print("        object.");
-                        // out.print(methodName);
-                        // out.println("(value);");
-                        // out.println("        return this;");
-                        // out.println("    }");
-                        // out.println();
+                        if (enclosedElement instanceof ExecutableElement) {
+                            ExecutableElement executableElement = (ExecutableElement) enclosedElement;
+                            Name methodName = enclosedElement.getSimpleName();
+                            List<? extends TypeParameterElement> typeParameters = executableElement.getTypeParameters();
+                            List<? extends VariableElement> parameters = executableElement.getParameters();
+                            TypeMirror returnType = executableElement.getReturnType();
+                            String rpcMethodRef = "__rpcMethod__" + i;
+                            out.print("    private final RpcMethod ");
+                            out.print(rpcMethodRef);
+                            out.print(" = RpcMethodImpl.of(");
+                            out.print(builderSimpleClassName);
+                            out.print(".class, \"");
+                            out.print(methodName);
+                            out.print("\", ");
+                            if (parameters == null || parameters.isEmpty()) {
+                                out.print("void.class");
+                            } else {
+                                out.print(parameters.stream().map(parameter -> parameter.asType().toString() + ".class").collect(Collectors.joining(" ,")));
+                            }
+                            out.println(");");
+
+                            out.print("    @Override");
+                            out.print(" public " + returnType.toString() + " " + methodName + "(");
+                            String args = "";
+                            if (parameters != null && !parameters.isEmpty()) {
+                                out.print(parameters.stream().map(parameter -> parameter.asType().toString() + " " + parameter.getSimpleName()).collect(Collectors.joining(" ,")));
+                                args = parameters.stream().map(VariableElement::getSimpleName).collect(Collectors.joining(" ,"));
+                            }
+                            out.println(") {");
+                            out.print("        return rpcEngine.call(");
+                            out.println("new RpcExecutePointImpl(" + rpcMethodRef + ", this, new Object[]{" + args + "}, new RpcExecuteContextImpl()));");
+                            out.println("    }");
+
+                            i++;
+                        }
+
                     }
-                    out.println("    }");
+                    out.println("}");
                     out.println();
                 }
             } catch (IOException e) {

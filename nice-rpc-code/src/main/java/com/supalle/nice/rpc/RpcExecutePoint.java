@@ -8,4 +8,6 @@ public interface RpcExecutePoint {
 
     Object[] getArgs();
 
+    RpcExecuteContext getContext();
+
 }
